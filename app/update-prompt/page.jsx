@@ -1,42 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter,useSearchParams} from "next/navigation";
-
+import { useRouter, useSearchParams } from "next/navigation";
 import Form from "@components/Form";
 
-const Editprompt = () => {
+function EditPromptContent() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const searchParams=useSearchParams();
-  const promptId=searchParams.get('id');
+  const searchParams = useSearchParams();
+  const promptId = searchParams.get("id");
 
   const [submitting, setIsSubmitting] = useState(false);
   const [post, setPost] = useState({ prompt: "", tag: "" });
 
+  useEffect(() => {
+    const getPromptDetail = async () => {
+      if (!promptId) return;
 
-  useEffect(()=>{
-   const getPromptDetail=async()=>{
-    const response=await fetch(`/api/prompt/${promptId}`);
-    const data=await response.json();
+      try {
+        const response = await fetch(`/api/prompt/${promptId}`);
+        const data = await response.json();
+        setPost({ prompt: data.prompt, tag: data.tag });
+      } catch (error) {
+        console.error("Failed to fetch prompt details:", error);
+      }
+    };
 
-    setPost({
-        prompt:data.prompt,
-        tag:data.tag,
-    })
-   }
+    getPromptDetail();
+  }, [promptId]);
 
-   if(promptId) getPromptDetail();
-  },[promptId])
-
-  if (status === "loading") {
-    return <p>Loading...</p>
-  }
-
-  if (!session?.user) {
-    return <p>You need to be signed in to create a prompt.</p>;
-  }
+  if (status === "loading") return <p>Loading...</p>;
+  if (!session?.user) return <p>You need to be signed in to edit a prompt.</p>;
 
   const updatePrompt = async (e) => {
     e.preventDefault();
@@ -57,7 +52,7 @@ const Editprompt = () => {
         router.push("/");
       }
     } catch (error) {
-      console.log(error);
+      console.error("Update failed:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -72,6 +67,12 @@ const Editprompt = () => {
       handleSubmit={updatePrompt}
     />
   );
-};
+}
 
-export default Editprompt;
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading editor...</p>}>
+      <EditPromptContent />
+    </Suspense>
+  );
+}
